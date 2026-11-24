@@ -56,7 +56,7 @@ export interface DraftInput {
 }
 
 export interface ListRequestParams {
-  scope?: 'mine'
+  scope?: 'mine' | 'pending'
   page?: number
   pageSize?: number
   status?: RequestStatus
@@ -105,4 +105,18 @@ export function updateDraft(
 
 export function deleteDraft(id: number): Promise<void> {
   return apiRequest<void>(`/api/requests/${id}`, { method: 'DELETE' })
+}
+
+export function submitRequest(id: number): Promise<ApprovalRequest> {
+  return apiRequest<ApprovalRequest>(`/api/requests/${id}/submit`, { method: 'POST' })
+}
+
+export function approveRequest(id: number, expected_step: number, comment: string): Promise<ApprovalRequest> {
+  return apiRequest<ApprovalRequest>(`/api/requests/${id}/approve`, {
+    method: 'POST', body: { expected_step, comment },
+  })
+}
+
+export function rejectRequest(id: number, expected_step: number, comment: string): Promise<ApprovalRequest> {
+  return apiRequest<ApprovalRequest>(`/api/requests/${id}/reject`, { method: 'POST', body: { expected_step, comment } })
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 
 import AppSidebar from '../components/AppSidebar.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -11,6 +11,8 @@ import {
   type RequestStatus,
 } from '../api/requests'
 
+const route = useRoute()
+const pending = computed(() => route.name === 'pending')
 const requests = ref<ApprovalRequest[]>([])
 const count = ref(0)
 const page = ref(1)
@@ -52,6 +54,7 @@ async function loadRequests(): Promise<void> {
   errorMessage.value = ''
   try {
     const data = await listRequests({
+      scope: pending.value ? 'pending' : 'mine',
       page: page.value,
       pageSize: pageSize.value,
       status: status.value || undefined,
@@ -87,6 +90,18 @@ function changePage(next: number): void {
   void loadRequests()
 }
 
+watch(
+  () => route.name,
+  (name) => {
+    if (name !== 'home' && name !== 'pending') return
+    status.value = ''
+    keyword.value = ''
+    appliedKeyword.value = ''
+    page.value = 1
+    void loadRequests()
+  },
+)
+
 onMounted(() => {
   void loadRequests()
 })
@@ -99,17 +114,16 @@ onMounted(() => {
     <main class="content-page">
       <div class="page-heading">
         <div>
-          <p class="eyebrow">申请管理</p>
-          <h1 class="page-title">我发起的</h1>
+          <h1 class="page-title">{{ pending ? '待我审批' : '我的申请' }}</h1>
         </div>
-        <RouterLink class="btn btn-primary" to="/requests/new">
+        <RouterLink v-if="!pending" class="btn btn-primary" to="/requests/new">
           新建草稿
         </RouterLink>
       </div>
 
       <section class="panel list-panel">
         <form class="filter-bar" @submit.prevent="applyFilters">
-          <label class="filter-field">
+          <label v-if="!pending" class="filter-field">
             <span>状态</span>
             <select v-model="status" @change="applyFilters">
               <option value="">全部状态</option>
@@ -167,9 +181,9 @@ onMounted(() => {
           v-else-if="requests.length === 0 && !errorMessage"
           class="empty-state"
         >
-          <p class="empty-title">还没有申请</p>
-          <p class="muted">新建一份草稿，开始你的第一条申请。</p>
-          <RouterLink class="btn btn-primary" to="/requests/new">
+          <p class="empty-title">{{ pending ? '暂无待审批申请' : '还没有申请' }}</p>
+          <p v-if="!pending" class="muted">新建一份草稿，开始你的第一条申请。</p>
+          <RouterLink v-if="!pending" class="btn btn-primary" to="/requests/new">
             新建草稿
           </RouterLink>
         </div>

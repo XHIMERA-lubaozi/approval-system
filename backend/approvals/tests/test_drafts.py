@@ -253,12 +253,11 @@ class ListDraftTests(DraftApiTestCase):
             [newer.pk, older.pk],
         )
 
-    def test_list_rejects_pending_scope(self):
+    def test_list_pending_scope_is_available(self):
         response = self.client.get(REQUESTS_URL, {"scope": "pending"})
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["code"], "scope_not_available")
-        self.assertIn("尚未开放", response.data["message"])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 0)
 
     def test_list_rejects_invalid_pagination(self):
         for params in ({"page": 0}, {"pageSize": 0}, {"pageSize": 101}):

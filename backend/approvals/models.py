@@ -86,3 +86,19 @@ class ApprovalRequest(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+
+
+class OperationHistory(models.Model):
+    request = models.ForeignKey(ApprovalRequest, on_delete=models.CASCADE, related_name='history')
+    operator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=20)
+    step = models.PositiveSmallIntegerField(null=True, blank=True)
+    comment = models.CharField(max_length=500, null=True, blank=True)
+    before_status = models.CharField(max_length=20)
+    before_step = models.PositiveSmallIntegerField(null=True, blank=True)
+    after_status = models.CharField(max_length=20)
+    after_step = models.PositiveSmallIntegerField(null=True, blank=True)
+    operated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('operated_at', 'id')

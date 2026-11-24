@@ -241,7 +241,7 @@
               ],
               "default": "mine"
             },
-            "description": "mine 为我发起的；pending 为待我审批。本轮仅开放 mine，pending 返回 400。"
+            "description": "mine 为我的申请（当前用户发起的）；pending 为当前用户待审批的申请。"
           },
           {
             "name": "page",

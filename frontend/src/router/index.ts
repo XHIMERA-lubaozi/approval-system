@@ -26,6 +26,7 @@ const routes: RouteRecordRaw[] = [
     component: HomePage,
     meta: { requiresAuth: true },
   },
+  { path: '/pending', name: 'pending', component: HomePage, meta: { requiresAuth: true } },
   {
     path: '/requests',
     redirect: '/',

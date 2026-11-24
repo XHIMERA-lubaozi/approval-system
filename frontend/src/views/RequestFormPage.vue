@@ -185,7 +185,6 @@ onMounted(() => {
     <main class="content-page">
       <div class="page-heading">
         <div>
-          <p class="eyebrow">申请管理</p>
           <h1 class="page-title">
             {{ isEdit ? '编辑草稿' : '新建草稿' }}
           </h1>
@@ -209,7 +208,7 @@ onMounted(() => {
       <div v-else-if="pageError" class="panel">
         <p class="alert alert-error" role="alert">{{ pageError }}</p>
         <RouterLink class="btn btn-ghost" :to="{ name: 'home' }">
-          返回我发起的
+          返回我的申请
         </RouterLink>
       </div>
 

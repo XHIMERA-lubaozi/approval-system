@@ -5,7 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppSidebar from '../components/AppSidebar.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { ApiError } from '../api/client'
-import { deleteDraft, getRequest, type ApprovalRequestDetail } from '../api/requests'
+import { deleteDraft, getRequest, submitRequest, approveRequest, rejectRequest, type ApprovalRequestDetail } from '../api/requests'
 import { authState } from '../auth/store'
 
 const route = useRoute()
@@ -24,6 +24,33 @@ const errorMessage = ref('')
 const showDeleteDialog = ref(false)
 const deleting = ref(false)
 const deleteError = ref('')
+const operating = ref(false)
+const feedback = ref('')
+const comment = ref('')
+const canApprove = computed(() => request.value?.status === 'in_review' && request.value.current_approver?.id === authState.user?.id)
+
+async function operate(action: 'submit' | 'approve' | 'reject'): Promise<void> {
+  if (!request.value || operating.value) return
+  if (action === 'reject' && !comment.value.trim()) { feedback.value = '请填写驳回意见'; return }
+  const id = request.value.id
+  const step = request.value.current_step
+  operating.value = true
+  feedback.value = ''
+  try {
+    if (action === 'submit') await submitRequest(id)
+    else if (step !== null && action === 'reject') await rejectRequest(id, step, comment.value.trim())
+    else if (step !== null) await approveRequest(id, step, comment.value)
+    request.value = await getRequest(id)
+    comment.value = ''
+    feedback.value = action === 'submit' ? '提交成功' : action === 'reject' ? '已驳回' : '审批通过'
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) request.value = await getRequest(id)
+    feedback.value = error instanceof ApiError && error.status === 409
+      ? '状态已变更，请刷新详情后确认并重新操作。'
+      : error instanceof ApiError ? error.message : '操作失败，请稍后重试'
+  } finally { operating.value = false }
+}
+
 
 const canManage = computed(
   () =>
@@ -93,7 +120,7 @@ onMounted(() => {
     <AppSidebar />
 
     <main class="content-page">
-      <RouterLink class="back-link" to="/">← 返回我发起的</RouterLink>
+      <RouterLink class="back-link" to="/">← 返回我的申请</RouterLink>
 
       <div v-if="loading" class="panel loading-state" role="status">
         加载中…
@@ -115,6 +142,7 @@ onMounted(() => {
           </div>
 
           <div v-if="canManage" class="detail-actions">
+            <button class="btn btn-primary" :disabled="operating" @click="operate('submit')">提交</button>
             <RouterLink
               class="btn btn-ghost"
               :to="{ name: 'request-edit', params: { id: request.id } }"
@@ -131,6 +159,13 @@ onMounted(() => {
           </div>
         </div>
 
+        <p v-if="feedback" role="status" class="alert">{{ feedback }}</p>
+        <section v-if="canApprove" class="panel detail-panel">
+          <label for="approval-comment">审批意见（可选）</label>
+          <textarea id="approval-comment" v-model="comment" maxlength="500" />
+          <button class="btn btn-primary" :disabled="operating" @click="operate('approve')">通过</button>
+          <button class="btn btn-danger" :disabled="operating" @click="operate('reject')">驳回</button>
+        </section>
         <section class="panel detail-panel">
           <dl class="detail-meta">
             <div>
@@ -193,6 +228,12 @@ onMounted(() => {
           <p v-if="request.history.length === 0" class="muted">
             草稿尚未提交，暂无审批历史。
           </p>
+          <ol v-else>
+            <li v-for="entry in request.history" :key="entry.id">
+              {{ entry.action === 'submit' ? '提交' : (entry.step === 1 ? '一级' : '二级') + (entry.action === 'reject' ? '驳回' : '通过') }} · {{ entry.operator.display_name }} · {{ formatDateTime(entry.operated_at) }}
+              <p v-if="entry.comment">意见：{{ entry.comment }}</p>
+            </li>
+          </ol>
         </section>
       </template>
     </main>

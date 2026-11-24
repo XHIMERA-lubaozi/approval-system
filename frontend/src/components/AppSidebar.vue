@@ -46,9 +46,28 @@ async function onLogout(): Promise<void> {
             <rect x="4" y="3.5" width="16" height="17" rx="2.5" />
             <path d="M8 8h8M8 12h8M8 16h5" />
           </svg>
-          <span>我发起的</span>
+          <span>我的申请</span>
         </RouterLink>
 
+        <RouterLink
+          class="sidebar-link"
+          :class="{ 'is-active': route.name === 'pending' }"
+          to="/pending"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="4" y="4" width="16" height="16" rx="2.5" />
+            <path d="M4 13h4l1.5 2h5L16 13h4" />
+          </svg>
+          <span>待我审批</span>
+        </RouterLink>
         <RouterLink
           class="sidebar-link"
           :class="{ 'is-active': isNewDraft }"

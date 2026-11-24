@@ -3,7 +3,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from approvals.models import ApprovalRequest
+from approvals.models import ApprovalRequest, OperationHistory
 from users.serializers import UserSerializer
 
 
@@ -119,6 +119,25 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
         return UserSerializer(approver).data if approver else None
 
 
+class OperationHistorySerializer(serializers.ModelSerializer):
+    operator = UserSerializer(read_only=True)
+    request_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = OperationHistory
+        fields = ('id', 'request_id', 'operator', 'action', 'step', 'comment', 'before_status', 'before_step', 'after_status', 'after_step', 'operated_at')
+
+
+class ApproveInputSerializer(serializers.Serializer):
+    expected_step = serializers.ChoiceField(choices=(1, 2))
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=500, trim_whitespace=False)
+
+
+class RejectInputSerializer(serializers.Serializer):
+    expected_step = serializers.ChoiceField(choices=(1, 2))
+    comment = serializers.CharField(max_length=500, trim_whitespace=True)
+
+
 class ApprovalRequestDetailSerializer(ApprovalRequestSerializer):
     history = serializers.SerializerMethodField()
 
@@ -126,8 +145,7 @@ class ApprovalRequestDetailSerializer(ApprovalRequestSerializer):
         fields = ApprovalRequestSerializer.Meta.fields + ("history",)
 
     def get_history(self, obj):
-        # 本轮草稿管理不写入审批历史，后续提交/审批阶段再接入历史模型。
-        return []
+        return OperationHistorySerializer(obj.history.select_related("operator").all(), many=True).data
 
 
 class RequestListQuerySerializer(serializers.Serializer):

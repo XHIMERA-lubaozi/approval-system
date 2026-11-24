@@ -1,5 +1,7 @@
 """申请单草稿接口。"""
 
+from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -12,9 +14,12 @@ from approvals.serializers import (
     ApprovalRequestDetailSerializer,
     ApprovalRequestSerializer,
     DraftInputSerializer,
+    ApproveInputSerializer,
+    RejectInputSerializer,
+    OperationHistorySerializer,
     RequestListQuerySerializer,
 )
-from approvals.services import ensure_can_modify_draft, ensure_can_view
+from approvals.services import ensure_can_modify_draft, ensure_can_view, transition
 
 
 def _request_queryset():
@@ -37,10 +42,12 @@ class RequestListCreateView(APIView):
         query.is_valid(raise_exception=True)
         params = query.validated_data
 
-        if params["scope"] != "mine":
-            raise ScopeNotAvailable()
-
-        requests = _request_queryset().filter(applicant=request.user)
+        if params["scope"] == "mine":
+            requests = _request_queryset().filter(applicant=request.user)
+        else:
+            requests = _request_queryset().filter(status=ApprovalRequest.Status.IN_REVIEW).filter(
+                Q(current_step=1, first_approver=request.user) | Q(current_step=2, second_approver=request.user)
+            )
 
         status_filter = params.get("status")
         if status_filter:
@@ -90,8 +97,9 @@ class RequestDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @transaction.atomic
     def put(self, request, pk):
-        approval_request = _get_request_or_404(pk)
+        approval_request = get_object_or_404(ApprovalRequest.objects.select_for_update(), pk=pk)
         ensure_can_modify_draft(approval_request, request.user)
 
         serializer = DraftInputSerializer(
@@ -106,8 +114,44 @@ class RequestDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @transaction.atomic
     def delete(self, request, pk):
-        approval_request = _get_request_or_404(pk)
+        approval_request = get_object_or_404(ApprovalRequest.objects.select_for_update(), pk=pk)
         ensure_can_modify_draft(approval_request, request.user)
         approval_request.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SubmitView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        return Response(ApprovalRequestSerializer(transition(pk, request.user, 'submit')).data)
+
+
+class ApproveView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        serializer = ApproveInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        obj = transition(pk, request.user, 'approve', **serializer.validated_data)
+        return Response(ApprovalRequestSerializer(obj).data)
+
+
+class RejectView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        serializer = RejectInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(ApprovalRequestSerializer(transition(pk, request.user, 'reject', **serializer.validated_data)).data)
+
+
+class HistoryView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, pk):
+        obj = _get_request_or_404(pk)
+        ensure_can_view(obj, request.user)
+        return Response(OperationHistorySerializer(obj.history.select_related('operator').all(), many=True).data)
