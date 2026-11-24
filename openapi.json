@@ -1,0 +1,1522 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "简易审批流系统 API",
+    "version": "1.0.0",
+    "description": "基于 doc/Spec.md 和 doc/ER图.md 的接口设计草案，共 13 个操作。JSON 请求和响应使用 UTF-8；字段采用 snake_case（查询参数 pageSize 沿用 Spec）。业务接口使用 JWT Bearer。所有非 2xx 响应使用统一 Error 结构；内部错误不返回敏感信息。日期时间使用带时区的 RFC 3339 格式。审批的 expected_step 是防止旧请求误推进下一节点的前置条件，并非由客户端决定当前步骤。接口设计尚待实现与验证。"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "当前服务根路径"
+    }
+  ],
+  "tags": [
+    {
+      "name": "认证"
+    },
+    {
+      "name": "用户"
+    },
+    {
+      "name": "申请单"
+    },
+    {
+      "name": "审批"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "注册用户",
+        "operationId": "register",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "注册成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "登录",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "获取当前用户",
+        "operationId": "getCurrentUser",
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "获取审批人候选用户",
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "description": "用户摘要列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests": {
+      "get": {
+        "tags": [
+          "申请单"
+        ],
+        "summary": "查询申请列表",
+        "operationId": "listRequests",
+        "description": "仅返回 scope 对应的申请；pending 仅包含当前需要本人处理的申请。支持状态与标题关键词筛选。",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "pending"
+              ],
+              "default": "mine"
+            },
+            "description": "mine 为我发起的；pending 为待我审批。"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "页码，从 1 开始。"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "每页条数。"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "in_review",
+                "approved",
+                "rejected"
+              ],
+              "description": "分别表示草稿、审批中、已通过、已驳回。"
+            },
+            "description": "按申请状态筛选。"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "按标题关键词搜索。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "申请单"
+        ],
+        "summary": "创建草稿",
+        "operationId": "createRequest",
+        "description": "申请人由当前用户确定，初始状态为草稿。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "申请单 ID。",
+          "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "申请单"
+        ],
+        "summary": "查看申请详情",
+        "operationId": "getRequest",
+        "description": "仅申请人或指定的一级、二级审批人可查看；无关用户返回 403。 历史按操作时间及 ID 升序。",
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequestDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "申请单"
+        ],
+        "summary": "修改草稿",
+        "operationId": "updateRequest",
+        "description": "仅申请人可完整更新自己的草稿。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突、重复请求或审批步骤已变化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "申请单"
+        ],
+        "summary": "删除草稿",
+        "operationId": "deleteRequest",
+        "description": "仅申请人可删除自己的草稿。",
+        "responses": {
+          "204": {
+            "description": "删除成功，无响应体。"
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突、重复请求或审批步骤已变化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/submit": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "申请单 ID。",
+          "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "审批"
+        ],
+        "summary": "提交草稿",
+        "operationId": "submitRequest",
+        "description": "仅申请人可提交草稿；提交后进入一级审批。状态更新与历史写入处于同一事务。",
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突、重复请求或审批步骤已变化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/approve": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "申请单 ID。",
+          "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "审批"
+        ],
+        "summary": "审批通过",
+        "operationId": "approveRequest",
+        "description": "仅当前步骤指定审批人可操作；在同一事务中检查当前状态、步骤、审批人，更新申请单并写入历史。同一节点并发最多一次成功。 一级通过进入二级；二级通过后结束。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突、重复请求或审批步骤已变化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/reject": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "申请单 ID。",
+          "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "审批"
+        ],
+        "summary": "审批驳回",
+        "operationId": "rejectRequest",
+        "description": "仅当前步骤指定审批人可操作；在同一事务中检查当前状态、步骤、审批人，更新申请单并写入历史。同一节点并发最多一次成功。 驳回意见必填，驳回后流程结束。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数不合法或凭据错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态冲突、重复请求或审批步骤已变化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/history": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "申请单 ID。",
+          "schema": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "审批"
+        ],
+        "summary": "查看操作历史",
+        "operationId": "getRequestHistory",
+        "description": "仅申请人或指定的一级、二级审批人可查看；无关用户返回 403。 按 operated_at 升序、id 升序排列。",
+        "responses": {
+          "200": {
+            "description": "操作历史列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperationHistory"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "缺少或无效的认证凭据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前用户无权执行此操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "申请单不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "username",
+          "display_name"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "format": "password",
+            "writeOnly": true
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password",
+          "display_name"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "format": "password",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "JWT Bearer 访问令牌。"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "access_token",
+          "token_type"
+        ]
+      },
+      "DraftInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": ".*\\S.*",
+            "description": "去除首尾空白后不能为空。"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "[\\s\\S]*\\S[\\s\\S]*",
+            "description": "去除首尾空白后不能为空。"
+          },
+          "first_approver_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "second_approver_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "content",
+          "first_approver_id",
+          "second_approver_id"
+        ],
+        "description": "创建和完整更新草稿时使用；两级审批人须存在且均不能是申请人。"
+      },
+      "ApprovalInput": {
+        "type": "object",
+        "properties": {
+          "expected_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "1 为一级审批，2 为二级审批。"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "通过时可省略或为空。"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "expected_step"
+        ],
+        "description": "expected_step 是客户端针对所见节点的前置条件；服务器必须依据数据库当前状态、步骤及审批人授权，并在事务内比较该值，不得据此前进到指定节点。重试必须保留原值；不一致返回 409。"
+      },
+      "RejectionInput": {
+        "type": "object",
+        "properties": {
+          "expected_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "1 为一级审批，2 为二级审批。"
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "[\\s\\S]*\\S[\\s\\S]*",
+            "description": "去除首尾空白后不能为空。"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "expected_step",
+          "comment"
+        ],
+        "description": "expected_step 为前置条件，服务端须在事务内与当前步骤比较。"
+      },
+      "ApprovalRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved",
+              "rejected"
+            ],
+            "description": "分别表示草稿、审批中、已通过、已驳回。"
+          },
+          "applicant": {
+            "$ref": "#/components/schemas/User"
+          },
+          "first_approver": {
+            "$ref": "#/components/schemas/User"
+          },
+          "second_approver": {
+            "$ref": "#/components/schemas/User"
+          },
+          "current_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              null
+            ],
+            "nullable": true,
+            "description": "1 为一级审批，2 为二级审批；无当前步骤时为 null。"
+          },
+          "current_approver": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ],
+            "nullable": true,
+            "description": "根据状态和当前步骤计算；无当前审批人时为 null。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 时间，包含时区。"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 时间，包含时区。"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "content",
+          "status",
+          "applicant",
+          "first_approver",
+          "second_approver",
+          "current_step",
+          "current_approver",
+          "created_at",
+          "updated_at",
+          "submitted_at"
+        ],
+        "description": "申请人和两级审批人以用户摘要表示；历史通过详情附带或历史接口获取。"
+      },
+      "ApprovalRequestDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved",
+              "rejected"
+            ],
+            "description": "分别表示草稿、审批中、已通过、已驳回。"
+          },
+          "applicant": {
+            "$ref": "#/components/schemas/User"
+          },
+          "first_approver": {
+            "$ref": "#/components/schemas/User"
+          },
+          "second_approver": {
+            "$ref": "#/components/schemas/User"
+          },
+          "current_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              null
+            ],
+            "nullable": true,
+            "description": "1 为一级审批，2 为二级审批；无当前步骤时为 null。"
+          },
+          "current_approver": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ],
+            "nullable": true,
+            "description": "根据状态和当前步骤计算；无当前审批人时为 null。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 时间，包含时区。"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 时间，包含时区。"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OperationHistory"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "content",
+          "status",
+          "applicant",
+          "first_approver",
+          "second_approver",
+          "current_step",
+          "current_approver",
+          "created_at",
+          "updated_at",
+          "submitted_at",
+          "history"
+        ]
+      },
+      "OperationHistory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "request_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "operator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "submit",
+              "approve",
+              "reject"
+            ]
+          },
+          "step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              null
+            ],
+            "nullable": true,
+            "description": "1 为一级审批，2 为二级审批；无当前步骤时为 null。"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          },
+          "before_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved",
+              "rejected"
+            ],
+            "description": "分别表示草稿、审批中、已通过、已驳回。"
+          },
+          "before_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              null
+            ],
+            "nullable": true,
+            "description": "1 为一级审批，2 为二级审批；无当前步骤时为 null。"
+          },
+          "after_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved",
+              "rejected"
+            ],
+            "description": "分别表示草稿、审批中、已通过、已驳回。"
+          },
+          "after_step": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              null
+            ],
+            "nullable": true,
+            "description": "1 为一级审批，2 为二级审批；无当前步骤时为 null。"
+          },
+          "operated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 时间，包含时区。"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "request_id",
+          "operator",
+          "action",
+          "step",
+          "comment",
+          "before_status",
+          "before_step",
+          "after_status",
+          "after_step",
+          "operated_at"
+        ],
+        "description": "提交时 step 和 comment 为 null；审批时 step 为 1 或 2，驳回时 comment 非空。"
+      },
+      "RequestPage": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "符合筛选条件的总条数。"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRequest"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "count",
+          "page",
+          "page_size",
+          "results"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "稳定的机器可读错误码。"
+          },
+          "message": {
+            "type": "string",
+            "description": "可展示给用户的错误信息。"
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true,
+            "description": "可选的字段级校验信息；不得包含敏感数据。"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ]
+      }
+    }
+  }
+}
