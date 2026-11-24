@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import BrandLogo from './BrandLogo.vue'
 import { authState, signOut } from '../auth/store'
 
 const route = useRoute()
@@ -24,7 +25,9 @@ async function onLogout(): Promise<void> {
 
 <template>
   <aside class="app-sidebar">
-    <RouterLink class="sidebar-brand" to="/">简易审批流系统</RouterLink>
+    <RouterLink class="sidebar-brand" to="/">
+      <BrandLogo compact />
+    </RouterLink>
 
     <div class="sidebar-nav-block">
       <p class="sidebar-section-label">工作台</p>

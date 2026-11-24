@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import logoUrl from '../assets/medalsoft-logo.png'
+import BrandLogo from '../components/BrandLogo.vue'
 import AuthWatermark from '../components/AuthWatermark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { ApiError, fieldMessages } from '../api/client'
@@ -73,7 +73,7 @@ async function onSubmit(): Promise<void> {
     <AuthWatermark />
     <section class="auth-card" aria-label="登录">
       <header class="auth-header">
-        <img class="brand-logo" :src="logoUrl" alt="Medalsoft" />
+        <BrandLogo />
       </header>
 
       <p v-if="justRegistered" class="alert alert-success" role="status">

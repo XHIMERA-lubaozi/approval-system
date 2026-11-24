@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import AppSidebar from '../components/AppSidebar.vue'
+import AppWatermark from '../components/AppWatermark.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { ApiError } from '../api/client'
 import {
@@ -110,6 +111,7 @@ onMounted(() => {
 <template>
   <div class="app-shell">
     <AppSidebar />
+    <AppWatermark />
 
     <main class="content-page">
       <div class="page-heading">
@@ -248,20 +250,6 @@ onMounted(() => {
   max-width: 68rem;
   margin-inline: auto;
   padding: 32px 24px 64px;
-}
-
-.page-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2.1rem);
-  line-height: 1.15;
 }
 
 .list-panel {

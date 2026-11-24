@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import AppSidebar from '../components/AppSidebar.vue'
+import AppWatermark from '../components/AppWatermark.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { ApiError } from '../api/client'
 import { deleteDraft, getRequest, submitRequest, approveRequest, rejectRequest, type ApprovalRequestDetail } from '../api/requests'
@@ -118,6 +119,7 @@ onMounted(() => {
 <template>
   <div class="app-shell">
     <AppSidebar />
+    <AppWatermark />
 
     <main class="content-page">
       <RouterLink class="back-link" to="/">← 返回我的申请</RouterLink>
@@ -160,11 +162,36 @@ onMounted(() => {
         </div>
 
         <p v-if="feedback" role="status" class="alert">{{ feedback }}</p>
-        <section v-if="canApprove" class="panel detail-panel">
-          <label for="approval-comment">审批意见（可选）</label>
-          <textarea id="approval-comment" v-model="comment" maxlength="500" />
-          <button class="btn btn-primary" :disabled="operating" @click="operate('approve')">通过</button>
-          <button class="btn btn-danger" :disabled="operating" @click="operate('reject')">驳回</button>
+        <section v-if="canApprove" class="panel detail-panel approval-panel">
+          <div class="approval-heading">
+            <h2 class="section-title">审批操作</h2>
+            <p class="muted">填写审批意见后选择通过或驳回；驳回时必须填写意见。</p>
+          </div>
+          <label for="approval-comment">审批意见</label>
+          <textarea
+            id="approval-comment"
+            v-model="comment"
+            class="control approval-comment"
+            maxlength="500"
+          ></textarea>
+          <div class="approval-actions">
+            <button
+              class="btn btn-primary"
+              type="button"
+              :disabled="operating"
+              @click="operate('approve')"
+            >
+              通过
+            </button>
+            <button
+              class="btn btn-danger"
+              type="button"
+              :disabled="operating"
+              @click="operate('reject')"
+            >
+              驳回
+            </button>
+          </div>
         </section>
         <section class="panel detail-panel">
           <dl class="detail-meta">
@@ -297,28 +324,6 @@ onMounted(() => {
   color: var(--brand);
 }
 
-.detail-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
-}
-
-.detail-title-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2.1rem);
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
 .detail-actions {
   display: flex;
   gap: 8px;
@@ -328,6 +333,27 @@ onMounted(() => {
   display: grid;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.approval-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.approval-heading .muted {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.approval-comment {
+  min-height: 6.5rem;
+}
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .detail-meta {

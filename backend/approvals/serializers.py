@@ -152,7 +152,7 @@ class RequestListQuerySerializer(serializers.Serializer):
     scope = serializers.ChoiceField(
         choices=("mine", "pending"),
         default="mine",
-        error_messages={"invalid_choice": "scope 仅支持 mine"},
+        error_messages={"invalid_choice": "scope 仅支持 mine 或 pending"},
     )
     page = serializers.IntegerField(
         min_value=1,

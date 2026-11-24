@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { registerUser } from '../api/auth'
-import logoUrl from '../assets/medalsoft-logo.png'
+import BrandLogo from '../components/BrandLogo.vue'
 import AuthWatermark from '../components/AuthWatermark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { ApiError, fieldMessages } from '../api/client'
@@ -137,7 +137,7 @@ async function onSubmit(): Promise<void> {
     <AuthWatermark />
     <section class="auth-card" aria-label="注册">
       <header class="auth-header">
-        <img class="brand-logo" :src="logoUrl" alt="Medalsoft" />
+        <BrandLogo />
       </header>
 
       <form class="form" novalidate @submit.prevent="onSubmit">

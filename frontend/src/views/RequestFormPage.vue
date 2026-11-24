@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import AppSidebar from '../components/AppSidebar.vue'
+import AppWatermark from '../components/AppWatermark.vue'
 import { ApiError, fieldMessages } from '../api/client'
 import {
   createDraft,
@@ -181,6 +182,7 @@ onMounted(() => {
 <template>
   <div class="app-shell">
     <AppSidebar />
+    <AppWatermark />
 
     <main class="content-page">
       <div class="page-heading">
@@ -221,7 +223,6 @@ onMounted(() => {
             class="control"
             maxlength="100"
             name="title"
-            placeholder="例如：采购两台显示器"
             :aria-invalid="fieldErrors.title.length > 0"
             :aria-describedby="
               fieldErrors.title.length > 0 ? 'request-title-error' : undefined
@@ -245,7 +246,6 @@ onMounted(() => {
             class="control content-control"
             maxlength="2000"
             name="content"
-            placeholder="补充申请背景、用途和期望完成时间。"
             :aria-invalid="fieldErrors.content.length > 0"
             :aria-describedby="
               fieldErrors.content.length > 0 ? 'request-content-error' : undefined
@@ -329,10 +329,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <p class="field-hint approver-hint">
-          两级审批人可以相同，但不能选择自己。审批人候选列表不包含当前账号。
-        </p>
-
         <p v-if="formError" class="alert alert-error" role="alert">
           {{ formError }}
         </p>
@@ -364,20 +360,6 @@ onMounted(() => {
   padding: 32px 24px 64px;
 }
 
-.page-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2.1rem);
-  line-height: 1.15;
-}
-
 .form-panel {
   display: grid;
   gap: 22px;
@@ -403,10 +385,6 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-}
-
-.approver-hint {
-  margin-top: -8px;
 }
 
 .form-actions {

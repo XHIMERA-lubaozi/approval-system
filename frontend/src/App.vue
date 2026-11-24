@@ -132,12 +132,6 @@ a:hover {
   letter-spacing: 0.08em;
 }
 
-.brand-logo {
-  display: block;
-  width: 150px;
-  height: auto;
-}
-
 .form {
   display: grid;
   gap: 18px;
@@ -330,8 +324,88 @@ a:hover {
 /* 业务后台布局 */
 
 .app-shell {
+  position: relative;
   min-height: 100vh;
   padding-left: 248px;
+}
+
+/* 功能页背景水印：只铺在右侧内容区，不覆盖左侧工作台 */
+
+.app-watermark-layer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 248px;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-watermark {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+}
+
+.app-watermark--top-right {
+  top: 4%;
+  right: 3%;
+  width: min(26vw, 340px);
+  opacity: 0.1;
+  filter: blur(1.5px);
+  transform: rotate(10deg);
+}
+
+.app-watermark--center-right {
+  top: 44%;
+  right: -40px;
+  width: min(34vw, 430px);
+  opacity: 0.12;
+  filter: blur(2px);
+  transform: rotate(-8deg);
+}
+
+.app-watermark--bottom-right {
+  bottom: 3%;
+  right: 14%;
+  width: min(24vw, 300px);
+  opacity: 0.08;
+  filter: blur(1.5px);
+  transform: rotate(6deg);
+}
+
+.content-page {
+  position: relative;
+  z-index: 1;
+}
+
+/* 内容区标题：统一三个功能页的字号与间距 */
+
+.page-heading,
+.detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.25rem, 2vw, 1.45rem);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .app-sidebar {
@@ -351,10 +425,6 @@ a:hover {
 .sidebar-brand {
   display: block;
   padding: 0 10px;
-  color: var(--brand);
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.35;
   text-decoration: none;
 }
 
@@ -479,11 +549,11 @@ a:hover {
 }
 
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--brand);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
 .hero-title {
@@ -632,10 +702,6 @@ textarea.control {
 }
 
 @media (max-width: 540px) {
-  .app-shell {
-    padding-top: 70px;
-  }
-
   .app-sidebar {
     gap: 8px;
     padding: 10px 12px;
@@ -680,6 +746,21 @@ textarea.control {
     padding-top: 78px;
   }
 
+  .app-watermark-layer {
+    top: 78px;
+    left: 0;
+  }
+
+  .app-watermark--top-right {
+    width: 200px;
+    opacity: 0.07;
+  }
+
+  .app-watermark--center-right,
+  .app-watermark--bottom-right {
+    display: none;
+  }
+
   .app-sidebar {
     inset: 0 0 auto;
     width: 100%;
@@ -695,8 +776,6 @@ textarea.control {
 
   .sidebar-brand {
     padding: 0;
-    font-size: 0.92rem;
-    white-space: nowrap;
   }
 
   .sidebar-section-label,
