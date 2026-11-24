@@ -4,9 +4,9 @@ erDiagram
 
     USER["用户"] {
         bigint id PK "用户 ID"
-        string username UK "用户名"
+        string username UK "账号"
         string password_hash "密码哈希"
-        string display_name "显示名称"
+        string display_name "昵称"
     }
 
     APPROVAL_REQUEST["申请单"] {

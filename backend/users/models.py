@@ -3,4 +3,4 @@ from django.db import models
 
 
 class User(AbstractUser):
-    display_name = models.CharField("显示名称", max_length=150)
+    display_name = models.CharField("昵称", max_length=150)

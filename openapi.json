@@ -3,7 +3,7 @@
   "info": {
     "title": "简易审批流系统 API",
     "version": "1.0.0",
-    "description": "基于 doc/Spec.md 和 doc/ER图.md 的接口设计草案，共 13 个操作。JSON 请求和响应使用 UTF-8；字段采用 snake_case（查询参数 pageSize 沿用 Spec）。业务接口使用 JWT Bearer。所有非 2xx 响应使用统一 Error 结构；内部错误不返回敏感信息。日期时间使用带时区的 RFC 3339 格式。审批的 expected_step 是防止旧请求误推进下一节点的前置条件，并非由客户端决定当前步骤。接口设计尚待实现与验证。"
+    "description": "基于 doc/Spec.md 和 doc/ER图.md 的接口设计，共 13 个操作。当前已实现注册、登录、获取当前用户、审批人候选列表，以及草稿创建、列表、详情、更新和删除（共 9 个操作）以及统一错误结构；提交、审批和历史接口为后续阶段设计草案。JSON 请求和响应使用 UTF-8；字段采用 snake_case（查询参数 pageSize 沿用 Spec）。业务接口使用 JWT Bearer。所有非 2xx 响应使用统一 Error 结构；内部错误不返回敏感信息。日期时间使用带时区的 RFC 3339 格式。审批的 expected_step 是防止旧请求误推进下一节点的前置条件，并非由客户端决定当前步骤。认证相关字段约束已与实际实现同步：账号（username）最长 150 且仅允许 Unicode 字母、数字及 @ . + - _；昵称（display_name）最长 150；注册密码至少 8 位、包含大写字母、小写字母、数字、符号中的至少两类，并通过 Django 已配置的密码校验。"
   },
   "servers": [
     {
@@ -241,7 +241,7 @@
               ],
               "default": "mine"
             },
-            "description": "mine 为我发起的；pending 为待我审批。"
+            "description": "mine 为我发起的；pending 为待我审批。本轮仅开放 mine，pending 返回 400。"
           },
           {
             "name": "page",
@@ -287,9 +287,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
-            "description": "按标题关键词搜索。"
+            "description": "按标题关键词搜索，最长 100 个字符。"
           }
         ],
         "responses": {
@@ -1016,10 +1017,14 @@
             "minimum": 1
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 150,
+            "description": "账号（username），最长 150，仅允许 Unicode 字母、数字及 @ . + - _。"
           },
           "display_name": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 150,
+            "description": "昵称（display_name），最长 150。"
           }
         },
         "additionalProperties": false,
@@ -1034,17 +1039,22 @@
         "properties": {
           "username": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 150,
+            "description": "必填且唯一；账号（username），最长 150，仅允许 Unicode 字母、数字及 @ . + - _。"
           },
           "password": {
             "type": "string",
-            "minLength": 1,
+            "minLength": 8,
             "format": "password",
-            "writeOnly": true
+            "writeOnly": true,
+            "description": "必填；至少 8 位，包含大写字母、小写字母、数字、符号中的至少两类，且须通过项目已配置的 Django 密码校验（不能是常见密码、不与账号过于相似）。"
           },
           "display_name": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 150,
+            "description": "必填；昵称（display_name），去除首尾空白后不能为空，最长 150。"
           }
         },
         "additionalProperties": false,
@@ -1059,13 +1069,15 @@
         "properties": {
           "username": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 150
           },
           "password": {
             "type": "string",
             "minLength": 1,
             "format": "password",
-            "writeOnly": true
+            "writeOnly": true,
+            "description": "必填；凭据错误时统一返回 400，不区分账号不存在与密码错误。"
           }
         },
         "additionalProperties": false,
@@ -1498,7 +1510,7 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "稳定的机器可读错误码。"
+            "description": "稳定的机器可读错误码。当前接口使用 validation_error、invalid_credentials、unauthorized、scope_not_available、conflict、forbidden、not_found、internal_error。"
           },
           "message": {
             "type": "string",
