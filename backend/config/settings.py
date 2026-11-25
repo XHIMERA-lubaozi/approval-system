@@ -34,7 +34,7 @@ DATABASES = {
         "NAME": os.environ.get("POSTGRES_DB", "medalsoft_approval"),
         "USER": os.environ.get("POSTGRES_USER", "medalsoft"),
         "PASSWORD": os.environ["POSTGRES_PASSWORD"],
-        "HOST": "127.0.0.1",
+        "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "55432"),
     }
 }

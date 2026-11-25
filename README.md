@@ -2,7 +2,7 @@
 
 员工通过浏览器发起申请，由指定用户依次完成两级审批。项目采用 Vue 3、TypeScript、Vite、Django REST Framework、Simple JWT 和 PostgreSQL。
 
-当前迭代已完成用户注册、登录、获取当前用户、审批人候选列表，以及草稿的创建、列表、详情、编辑和删除，包含浏览器端登录闭环、统一异常处理和日志脱敏。提交、两级审批和审批历史属于后续阶段。
+系统支持注册登录、草稿管理、提交、两级审批、驳回、待办和历史查询。可使用 Docker Compose 启动完整系统，也可单独运行数据库并在本机开发前后端。
 
 ## 已实现功能
 
@@ -13,14 +13,35 @@
 - 通过 `LOGGING` 输出控制台日志；未预期异常记录一条 ERROR 日志，包含请求方法、路由、异常类型和脱敏后的堆栈。
 - `GET /api/users`：返回审批人候选用户摘要；前端选择审批人时过滤当前账号。
 - `POST /api/requests`：创建草稿；申请人取自当前用户，初始状态为 `draft`。
-- `GET /api/requests`：查询“我的申请”列表，支持状态、标题关键词、分页和总数。
-- `GET /api/requests/{id}`：申请人和指定审批人查看详情，草稿 `history` 为空数组。
+- `GET /api/requests`：查询“我的申请”或“待我审批”，支持状态、标题关键词、分页和总数。
+- `GET /api/requests/{id}`：申请人和指定审批人查看详情及操作历史。
 - `PUT /api/requests/{id}`：申请人完整更新自己的草稿。
 - `DELETE /api/requests/{id}`：申请人删除自己的草稿。
+- `POST /api/requests/{id}/submit`：申请人提交草稿，进入一级审批。
+- `POST /api/requests/{id}/approve`、`POST /api/requests/{id}/reject`：当前审批人通过或驳回。
+- `GET /api/requests/{id}/history`：申请人和指定审批人查询操作历史。
 - 前端注册页、登录页、受保护首页、路由守卫、Bearer Token 注入、刷新恢复会话和退出登录。
-- 前端“我的申请”列表、新建/编辑表单、详情页、删除确认、筛选、搜索和分页。
+- 前端提供“我的申请”和“待我审批”列表、草稿编辑、申请详情、审批操作与历史展示。
 
-## 本地启动
+## Docker 一键启动
+
+准备 Docker Desktop 或带 `docker compose` 的 Docker 环境。在项目根目录运行：
+
+```sh
+test -f .env || cp .env.example .env
+docker compose up -d --build --wait
+```
+
+第一行仅在首次配置时需要。之后一条 `docker compose up -d --build --wait` 即可构建并启动全部服务。全新的本机演示环境也可直接使用 `docker compose --env-file .env.example up -d --build --wait`，后续操作继续使用相同的环境文件。有现存数据库卷时，应继续使用初始化该卷时的数据库凭据。
+
+启动后打开 [http://localhost:8080](http://localhost:8080)。Nginx 提供 Vue 页面，并将同源 `/api` 请求转发给 Django。Django 等待 PostgreSQL 就绪并自动迁移，前端等待后端就绪后启动。
+
+- `FRONTEND_PORT` 控制本机访问端口，默认 `8080`。PostgreSQL 的 `POSTGRES_PORT` 默认 `55432`，用于本机连接数据库，容器间连接使用 `db:5432`。
+- `docker compose ps` 查看健康状态，`docker compose logs -f backend` 查看迁移和后端日志。
+- `docker compose exec -T backend python manage.py test` 在容器中执行后端测试。前端类型检查由镜像构建执行。
+- `docker compose down` 停止服务并保留 PostgreSQL 数据卷。示例环境变量用于本地开发或演示。
+
+## 本机开发启动
 
 准备 Docker Desktop 或支持 Docker Compose 的 Docker 环境、Node.js 22.12+、Python 3.13 和 uv。以下命令以项目根目录为起点。
 
@@ -52,7 +73,7 @@
 
    打开 [前端](http://127.0.0.1:5173/)。Vite 在本地将 `/api` 请求代理到 Django。
 
-## 认证与草稿接口
+## API 接口
 
 | 方法 | 路由 | 认证 | 成功响应 |
 | --- | --- | --- | --- |
@@ -65,6 +86,10 @@
 | GET | `/api/requests/{id}` | Bearer JWT | `200`，申请详情 |
 | PUT | `/api/requests/{id}` | Bearer JWT | `200`，更新后的草稿 |
 | DELETE | `/api/requests/{id}` | Bearer JWT | `204`，无响应体 |
+| POST | `/api/requests/{id}/submit` | Bearer JWT | `200`，提交后的申请 |
+| POST | `/api/requests/{id}/approve` | Bearer JWT | `200`，通过后的申请 |
+| POST | `/api/requests/{id}/reject` | Bearer JWT | `200`，驳回后的申请 |
+| GET | `/api/requests/{id}/history` | Bearer JWT | `200`，操作历史数组 |
 
 - 注册字段：`username`、`password`、`display_name` 均必填。账号（`username`）最长 150，仅允许 Unicode 字母、数字及 `@ . + - _`；昵称（`display_name`）最长 150；密码至少 8 位，包含大写字母、小写字母、数字、符号中的至少两类，并通过项目配置的 Django 密码校验。
 - 账号重复返回 `400`，`details.username` 包含可展示的字段错误；数据库唯一约束覆盖并发注册。
@@ -80,16 +105,16 @@
 - 两级审批人必须存在且不能是申请人，允许同一用户担任两级审批人。
 - 创建时状态固定为 `draft`，当前步骤、当前审批人和提交时间为空；编辑成功更新 `updated_at`。
 - 申请人或任一指定审批人可查看详情；只有申请人可编辑或删除自己的草稿，且仅限草稿。
-- 列表 `scope` 默认为 `mine`，仅返回当前用户发起的申请；`scope=pending` 本轮返回 `400`。列表先筛选再分页，按创建时间和 ID 倒序，响应 `count` 为筛选后的总数。
-- 本轮创建、编辑、删除草稿均不写入审批历史；详情的 `history` 固定为空数组。
+- 列表 `scope` 默认为 `mine`，返回当前用户发起的申请。`scope=pending` 返回当前需要本人处理的申请。列表先筛选再分页，按创建时间和 ID 倒序，响应 `count` 为筛选后的总数。
+- 创建、编辑、删除草稿均不写入审批历史；成功提交、通过和驳回分别写入一条记录，详情按时间及 ID 升序展示历史。
 
 ## 验证与停止
 
 - 根目录运行 `docker compose config --quiet` 检查 Compose 配置，运行 `docker compose ps` 查看数据库状态。
-- 在 `backend/` 运行 `uv run --locked python manage.py check` 检查 Django 配置，运行 `uv run --locked python manage.py test` 执行后端测试。当前 47 项测试覆盖注册、登录、Token 场景、统一异常与日志脱敏，以及草稿校验、审批人规则、权限、列表范围、筛选分页、更新和删除。
+- 在 `backend/` 运行 `uv run --locked python manage.py check` 检查 Django 配置，运行 `uv run --locked python manage.py test` 执行后端测试。
 - 在 `frontend/` 运行 `npm run build` 执行前端类型检查和生产构建。
 - 浏览器验收步骤、实际命令与结果见 [验收记录](doc/验收记录.md)。
-- 在根目录运行 `docker compose down` 停止数据库。命名卷保留已有数据。
+- 在根目录运行 `docker compose down` 停止 Compose 服务。命名卷保留数据库数据。
 
 ## 目录与文档
 
